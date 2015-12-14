@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/tls"
-
 	"log"
 	"net/http"
 
@@ -35,10 +34,10 @@ func main() {
 
 	router, err := rest.MakeRouter(
 		//rest.Get("/status", Es.getElasticStatus),
-		//rest.Get("/log/:type", Es.getRelatedLog),
-		//rest.Get("/log/subscription/:id", Es.getElasticRelatedLog),
+
 		rest.Get("/log", GetSubscription),
 		rest.Get("/log/category", GetSubscriptionByCategory),
+		rest.Get("/log/tags", GetSubscriptionByTags),
 	)
 
 	if err != nil {
