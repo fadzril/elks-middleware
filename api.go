@@ -21,6 +21,28 @@ var (
 	lock = sync.RWMutex{}
 )
 
+// Subscription struct
+type Subscription struct {
+	Type             string
+	App_Id           string
+	Component        string
+	Hostname         string
+	Transaction_Type string
+	Subscription_Id  string
+	Category         string
+	Status           string
+	Messages         string
+	Tags             []string
+	Ts               time.Time `json: "created"`
+}
+
+// Subscriptions List struct
+type Subscriptions struct {
+	Total   int
+	Message string
+	Result  []Subscription
+}
+
 // GetVersion Public
 func GetVersion() string {
 	return "1.0.0.1"
@@ -144,6 +166,10 @@ func GetSubscription(w rest.ResponseWriter, r *rest.Request) {
 	w.WriteJson(&result)
 }
 
+/*
+* GetSubscriptionByCategory
+* query params: size, category
+ */
 func GetSubscriptionByCategory(w rest.ResponseWriter, r *rest.Request) {
 	lock.Lock()
 
