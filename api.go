@@ -23,17 +23,19 @@ var (
 
 // Subscription struct
 type Subscription struct {
-	Type             string
-	App_Id           string
-	Component        string
-	Hostname         string
-	Transaction_Type string
-	Subscription_Id  string
-	Category         string
+	Uri              string `json:"uri"`
+	Selection        string `json:"selection"`
+	Type             string `json:"type"`
+	App_Id           string `json:"app_id"`
+	Component        string `json:"component"`
+	Hostname         string `json:"hostname"`
+	Transaction_Type string `json:"transaction_type"`
+	Subscription_Id  string `json:"subscription_id"`
+	Category         string `json:"category"`
 	Status           string
-	Messages         string
-	Tags             []string
-	Ts               string
+	Messages         string   `json:"messages"`
+	Tags             []string `json:"tags"`
+	Ts               string   `json:"ts"`
 }
 
 // Subscriptions List struct
@@ -78,6 +80,7 @@ func formatResponse(out *elastigo.Hits) (res *Subscriptions, err error) {
 				log.Println("Error Unmarshalling", ers)
 			}
 
+			sub.Uri = item.Id
 			res.Result = append(res.Result, sub)
 		}
 
@@ -101,7 +104,7 @@ func formatResponse(out *elastigo.Hits) (res *Subscriptions, err error) {
  *		Query: from
  *		Query: to
  * Example:
- * http://localhost:8000/log?size=500&from=2015-12-12T23:00:00Z&to=
+ * http://localhost:8000/rest/index?size=500&q=keywords&from=2015-12-12T23:00:00Z&to=
  */
 func GetSubscription(w rest.ResponseWriter, r *rest.Request) {
 	lock.Lock()
@@ -111,6 +114,7 @@ func GetSubscription(w rest.ResponseWriter, r *rest.Request) {
 
 	// DSL Query Using Range
 	size := r.URL.Query().Get("size")
+	query_string := r.URL.Query().Get("q")
 	from := formatDate(
 		r.URL.Query().Get("from"),
 		"from",
@@ -134,7 +138,7 @@ func GetSubscription(w rest.ResponseWriter, r *rest.Request) {
 				"query": {
 					"query_string": {
 						"analyze_wildcard": true,
-						"query": "*"
+						"query": "` + query_string + `"
 					}
 				},
 				"filter": {
@@ -188,6 +192,7 @@ func GetSubscriptionByCategory(w rest.ResponseWriter, r *rest.Request) {
 
 	size := r.URL.Query().Get("size")
 	categories := r.URL.Query().Get("query")
+
 	query := `{
 		"size": ` + size + `,
 		"sort": [{
@@ -201,7 +206,7 @@ func GetSubscriptionByCategory(w rest.ResponseWriter, r *rest.Request) {
 				"query": {
 					"query_string": {
 						"analyze_wildcard": true,
-						"query": "category:` + categories + `"
+						"query": "NOT type:gui AND category:` + categories + `"
 					}
 				},
 				"filter": {
@@ -209,7 +214,7 @@ func GetSubscriptionByCategory(w rest.ResponseWriter, r *rest.Request) {
 						"must": [{
 							"range": {
 								"@timestamp": {
-									"gte": "now-1d/d",
+									"gte": "now-90d/d",
 									"lte": "now/d"
 								}
 							}
@@ -251,6 +256,8 @@ func GetSubscriptionByTags(w rest.ResponseWriter, r *rest.Request) {
 
 	lock.Lock()
 	tags := r.URL.Query().Get("query")
+
+	log.Printf("Getting By Tags. Params is : %v", tags)
 	query := `{
 		"size": 1000,
 		"sort": [{
