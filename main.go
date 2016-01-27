@@ -45,6 +45,6 @@ func main() {
 	}
 
 	api.SetApp(router)
-	log.Println("Attemp to start server at http://localhost:8000")
-	log.Fatal(http.ListenAndServe(":8000", api.MakeHandler()))
+	log.Println("Attemp to start server at http://localhost:3000")
+	log.Fatal(http.ListenAndServe(":3000", api.MakeHandler()))
 }
