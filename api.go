@@ -11,12 +11,6 @@ import (
 	"github.com/mattbaird/elastigo/lib"
 )
 
-const (
-	ServerName  = "c4t03459.itcs.hpecorp.net" //ServerName
-	ServerPort  = 9300                        //ServerPort
-	ServerIndex = "leo"                       // ElasticSearch Index
-)
-
 var (
 	lock = sync.RWMutex{}
 )
@@ -31,11 +25,14 @@ type Subscription struct {
 	Hostname         string `json:"hostname"`
 	Transaction_Type string `json:"transaction_type"`
 	Subscription_Id  string `json:"subscription_id"`
+	Event_Id         string `json:"event_id"`
 	Category         string `json:"category"`
+	Source_Filename  string `json:"source_filename"`
+	Target_Filename  string `json:"target_filename"`
+	Messages         string `json:"messages"`
+	Tags             string `json:"tags",omitempty`
+	Received_At      string `json:"received_at"`
 	Status           string
-	Messages         string   `json:"messages"`
-	Tags             []string `json:"tags"`
-	Ts               string   `json:"ts"`
 }
 
 // Subscriptions List struct
@@ -110,11 +107,13 @@ func GetSubscription(w rest.ResponseWriter, r *rest.Request) {
 	lock.Lock()
 
 	client := elastigo.NewConn()
-	client.Domain = ServerName
+	client.Domain = ElasticServerHost
+	log.Printf("Dialing ElasticServerHost:ElasticSearchIndex \t%s:%s", ElasticServerHost, ElasticSearchIndex)
 
 	// DSL Query Using Range
 	size := r.URL.Query().Get("size")
 	query_string := r.URL.Query().Get("q")
+
 	from := formatDate(
 		r.URL.Query().Get("from"),
 		"from",
@@ -124,43 +123,53 @@ func GetSubscription(w rest.ResponseWriter, r *rest.Request) {
 		"to",
 	)
 
-	defer client.Close()
 	query := `{
-		"size": ` + size + `,
-		"sort": [{
-			"@timestamp": {
-				"order": "desc",
-				"unmapped_type": "boolean"
+	  "size": ` + size + `,
+	  "sort": [
+		{
+		  "@timestamp": {
+			"order": "asc",
+			"unmapped_type": "boolean"
+		  }
+		}
+	  ],
+	  "query": {
+		"filtered": {
+		  "query": {
+			"query_string": {
+			  "analyze_wildcard": true,
+			  "query": "` + query_string + `"
 			}
-		}],
-		"query": {
-			"filtered": {
-				"query": {
-					"query_string": {
-						"analyze_wildcard": true,
-						"query": "` + query_string + `"
+		  },
+		  "filter": {
+			"bool": {
+			  "must": [
+				{
+				  "range": {
+					"@timestamp": {
+					  "gte": "` + from + `",
+					  "lte": "` + to + `"
 					}
-				},
-				"filter": {
-					"bool": {
-						"must": [{
-							"range": {
-								"@timestamp": {
-									"gte": "` + from + `",
-									"lte": "` + to + `"
-								}
-							}
-						}],
-						"must_not": []
-					}
+				  }
 				}
+			  ],
+			  "must_not": []
 			}
-		},
-		"fields": ["*", "_source"],
-		"fielddata_fields": ["@timestamp","ts"]
+		  }
+		}
+	  },
+	  "fields": [
+		"*",
+		"_source"
+	  ],
+	  "fielddata_fields": [
+		"@timestamp",
+		"arrived_at"
+	  ]
 	}`
 
-	out, err := client.Search(ElasticIndex, "", nil, query)
+	defer client.Close()
+	out, err := client.Search(ElasticSearchIndex, "", nil, query)
 
 	if err != nil {
 		log.Println("Error Getting Faceted Search \n", err)
@@ -188,7 +197,7 @@ func GetSubscriptionByCategory(w rest.ResponseWriter, r *rest.Request) {
 	lock.Lock()
 
 	client := elastigo.NewConn()
-	client.Domain = ServerName
+	client.Domain = ElasticServerHost
 
 	size := r.URL.Query().Get("size")
 	categories := r.URL.Query().Get("query")
@@ -228,7 +237,7 @@ func GetSubscriptionByCategory(w rest.ResponseWriter, r *rest.Request) {
 		"fielddata_fields": ["@timestamp","ts"]
 	}`
 
-	out, err := client.Search(ElasticIndex, "", nil, query)
+	out, err := client.Search(ElasticSearchIndex, "", nil, query)
 	if err != nil {
 		log.Println("Error Getting Result:\n", err)
 	}
@@ -252,7 +261,7 @@ func GetSubscriptionByCategory(w rest.ResponseWriter, r *rest.Request) {
  */
 func GetSubscriptionByTags(w rest.ResponseWriter, r *rest.Request) {
 	client := elastigo.NewConn()
-	client.Domain = ServerName
+	client.Domain = ElasticServerHost
 
 	lock.Lock()
 	tags := r.URL.Query().Get("query")
@@ -293,7 +302,7 @@ func GetSubscriptionByTags(w rest.ResponseWriter, r *rest.Request) {
 		"fielddata_fields": ["@timestamp","ts"]
 	}`
 
-	out, err := client.Search(ElasticIndex, "", nil, query)
+	out, err := client.Search(ElasticSearchIndex, "", nil, query)
 	if err != nil {
 		log.Println("Error triggering GetSubscriptionByTags \n", err)
 	}

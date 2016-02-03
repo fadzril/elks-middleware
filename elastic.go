@@ -16,7 +16,7 @@ type ElasticService struct {
 
 // "Status: ElasticService Status"
 func (e ElasticService) getElasticStatus(w rest.ResponseWriter, r *rest.Request) {
-	uri := fmt.Sprintf("https://%s/%s/_status", ElasticServer, ElasticIndex)
+	uri := fmt.Sprintf("https://%s/%s/_status", ElasticServerHost, ElasticSearchIndex)
 	response, error := e.Client.Get(uri)
 
 	log.Println("GET: ", uri)
@@ -36,7 +36,7 @@ func (e ElasticService) getElasticStatus(w rest.ResponseWriter, r *rest.Request)
 
 func (e ElasticService) getRelatedLog(w rest.ResponseWriter, r *rest.Request) {
 	p := r.PathParam("type")
-	uri := fmt.Sprintf("https://%s/%s/%s/_search?pretty=true", ElasticServer, ElasticIndex, p)
+	uri := fmt.Sprintf("https://%s/%s/%s/_search?pretty=true", ElasticServerHost, ElasticSearchIndex, p)
 
 	log.Println("GET: ", uri)
 	response, error := e.Client.Get(uri)
